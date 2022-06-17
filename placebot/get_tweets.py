@@ -8,6 +8,7 @@ import tweepy
 
 # Internal packages
 from db_conn import DbConn
+from tweet import Tweet
 from exceptions import UserNotFoundError, AuthTokenNotFoundError
 
 LOGGER = getLogger(__name__)
@@ -19,7 +20,6 @@ class TweetReader:
         """Read the tweets from a user or set of users.
 
         :param usernames: The list of usernames to scrape tweets for.
-        :type usernames: str
         """
         self.usernames = usernames
         if bearer_token := os.getenv("TWITTER_BEARER_TOKEN"):
@@ -46,18 +46,16 @@ class TweetReader:
         """Check if there already exists data for the user."""
         pass
 
-    def get_tweets_user_id(self) -> dict:
-        """Get the user's tweets.
-        
-        :param user_id: The user's Twitter ID to fetch tweets
-        :type user_id: str
-        """
+    def get_tweets_user_id(self):
+        """Get the user's tweets."""
         tweets = {"user_id": self.user_id, "tweets": []}
         LOGGER.debug(f"Getting tweets for user {self.username} since tweet {self.since}")
+        # Get tweets, optionally after a tweet ID
         for tweet in tweepy.Paginator(self.client.get_users_tweets, id=self.user_id, exclude=["retweets", "replies"],
-                                since=self.since, max_results=10).flatten(limit=250):
+                                since=self.since, max_results=10, user_fields="created_at").flatten(limit=250):
             tweets["tweets"].append({"tweet": tweet, "id": tweet.id})
-        return tweets
+        # Write the tweets to the database
+        self.db_conn.write_tweets_to_db(tweets)
 
     def get_tweets_users(self) -> None:
         """Get all tweets for the data set."""
@@ -69,7 +67,7 @@ class TweetReader:
             if (self.check_existing_data() := self.since):
                 # Check if there are newer tweets we can scrape
                 if self.newer_tweets():
-                    self.
+                    self.get_tweets_user_id()
 
 
 if __name__ == "__main__":
