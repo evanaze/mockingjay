@@ -19,37 +19,46 @@ class DbConn:
         """Initialize the database with tables."""
         # tweets table
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS tweets(
-            tweet_id INT PRIMARY KEY,
-            user_id INT,
+            tweetID INT PRIMARY KEY,
+            authorID INT,
             tweet TEXT,
             timestamp TEXT
-            FOREIGN KEY (user_id)
-                REFERENCES users (user_id)
+            FOREIGN KEY (authorID)
+                REFERENCES users (authorID)
             );""")
 
         # users table
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS users(
-            user_id INT PRIMARY KEY,
+            authorID INT PRIMARY KEY,
             username TEXT
             );""")
         
-    def get_most_recent_tweet(self, user_id: int) -> int:
+    def update_user(self, author_id: int, username: str) -> None:
+        """Creates or updates a user with a given username"""
+        params = {"author_id": author_id, "username": username}
+        self.cursor.execute("""INSERT INTO users VALUES (:author_id, :username)
+                            ON CONFLICT (author_id) DO UPDATE SET username=:username""", params)
+        self.conn.commit()
+        
+    def get_most_recent_tweet(self, author_id: int) -> int:
         """Get the ID of the most recent tweet for a user.
         
         :return: The tweet ID of the most recent tweet
         """
-        self.cursor.execute("SELECT tweet_id FROM tweets WHERE user_id = (?);", user_id)
+        self.cursor.execute("SELECT tweetID FROM tweets WHERE authorID = (?);", (author_id))
         tweet = self.cursor.fetchone()[0]
         return tweet.id
+    
+    def queue_tweet(self, tweet: dict) -> None:
+        """Add tweets to the queue."""
+        self.queue.append((tweet.id, tweet.author_id, tweet.text, tweet.timestamp))
 
-    def write_tweets_to_db(self, user_id: int, tweets: dict) -> None:
+    def write_tweets(self) -> None:
         """Write queue to database"""
-        self.queue.extend(tweets)
         while self.queue:
             # Write the data in the queue
-            for i in range(min(len(self.queue, BUFFER_SIZE))):
-                tweet = self.queue.pop(0)
-                tweet_id, author_id, text, timestamp = tweet.id, tweet.author_id, tweet.text, tweet.timestamp
+            for _ in range(min(len(self.queue), BUFFER_SIZE)):
+                tweet_id, author_id, text, timestamp = self.queue.pop(0)
                 self.cursor.execute("INSERT INTO tweets VALUES (?, ?, ?, ?)", (tweet_id, author_id, text, timestamp))
+                self.queue.task_done()
             self.conn.commit()
-

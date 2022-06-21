@@ -23,24 +23,28 @@ class TweetReader:
         """
         self.usernames = usernames
         if bearer_token := os.getenv("TWITTER_BEARER_TOKEN"):
-            self.client = tweepy.Client(bearer_token)
+            self.tweepy_client = tweepy.Client(bearer_token)
         else:
             raise AuthTokenNotFoundError("Please export your bearer token.")
         self.db_conn = DbConn()
 
     def get_user_ids(self) -> None:
-        """Get the user IDs of the users Twitter handles."""
+        """Get the user IDs of the users Twitter handles from Tweepy"""
         self.user_ids = {}
         for username in self.usernames:
             LOGGER.debug(f"Looking up user id for user {username}")
-            user = self.client.get_user(username=username)
+            # Get the current author ID from Tweepy
+            user = self.tweepy_client.get_user(username=username)
+            # Check for errors in finding the user
             if user.errors:
                 msg = user.errors[0]["detail"]
                 raise UserNotFoundError(msg)
             else:
-                user_id = user.data["data"]["id"]
-                LOGGER.debug(f"User {username} has ID {user_id}")
-                self.user_ids[username] = user_id
+                author_id = user.data["data"]["id"]
+                LOGGER.debug(f"User {username} has ID {author_id}")
+                # Update the user table
+                self.db_conn.update_user(author_id, username)
+                self.user_ids[username] = author_id
                 
     def existing_data(self) -> Optional[int]:
         """Check if there already exists data for the user."""
@@ -51,11 +55,12 @@ class TweetReader:
         tweets = {"user_id": self.user_id, "tweets": []}
         LOGGER.debug(f"Getting tweets for user {self.username} since tweet {self.since}")
         # Get tweets, optionally after a tweet ID
-        for tweet in tweepy.Paginator(self.client.get_users_tweets, id=self.user_id, exclude=["retweets", "replies"],
+        for tweet in tweepy.Paginator(self.tweepy_client.get_users_tweets, id=self.user_id, exclude=["retweets", "replies"],
                                 since=self.since, max_results=10, user_fields="created_at").flatten(limit=250):
-            tweets["tweets"].append({"tweet": tweet, "id": tweet.id})
+            self.db_conn.queue_tweet(tweet)
         # Write the tweets to the database
-        self.db_conn.write_tweets_to_db(tweets)
+        print(f"Tweet type: {type(tweet)}")
+        self.db_conn.write_tweets()
 
     def get_tweets_users(self) -> None:
         """Get all tweets for the data set."""
