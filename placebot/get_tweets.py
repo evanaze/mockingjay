@@ -1,15 +1,20 @@
 """Get tweets for a specified user."""
 import os
+import logging.config
 from logging import getLogger
 from typing import Optional
 
 # Third party packages
+import yaml
 import tweepy
 
 # Internal packages
 from db_conn import DbConn
-from tweet import Tweet
 from exceptions import UserNotFoundError, AuthTokenNotFoundError
+
+with open('placebot/logging_config.yaml', 'r') as f:
+    config = yaml.safe_load(f.read())
+    logging.config.dictConfig(config)
 
 LOGGER = getLogger(__name__)
 
@@ -22,6 +27,7 @@ class TweetReader:
         :param usernames: The list of usernames to scrape tweets for.
         """
         self.usernames = usernames
+        self.since = None
         if bearer_token := os.getenv("TWITTER_BEARER_TOKEN"):
             self.tweepy_client = tweepy.Client(bearer_token)
         else:
@@ -46,34 +52,53 @@ class TweetReader:
                 self.db_conn.update_user(author_id, username)
                 self.user_ids[username] = author_id
                 
-    def existing_data(self) -> Optional[int]:
-        """Check if there already exists data for the user."""
-        pass
+    def check_newer_tweets(self) -> bool:
+        """Check if the user has newer tweets we can scrape.
 
-    def get_tweets_user_id(self):
+        :return: A boolean value for whether or not there are new tweets to scrape.
+        """
+        # Get the most recent tweet from our database
+        most_recent_db = self.db_conn.get_most_recent_tweet(self.author_id)
+        LOGGER.debug(f"Most recent recorded tweet: {most_recent_db}")
+        # Get the user's most recent tweet on Twitter
+        most_recent_tweets = self.tweepy_client.get_users_tweets(id=self.author_id, exclude=["retweets", "replies"], 
+                                                                since_id=most_recent_db, max_results=5)
+        # Check if there are new tweets
+        return int(most_recent_tweets.meta["result_count"]) != 0
+
+    def get_users_tweets(self) -> None:
         """Get the user's tweets."""
-        tweets = {"user_id": self.user_id, "tweets": []}
-        LOGGER.debug(f"Getting tweets for user {self.username} since tweet {self.since}")
+        msg = f"Getting tweets for user {self.username}"
+        if self.since:
+            msg += f" since tweet {self.since}"
+        LOGGER.debug(msg)
         # Get tweets, optionally after a tweet ID
-        for tweet in tweepy.Paginator(self.tweepy_client.get_users_tweets, id=self.user_id, exclude=["retweets", "replies"],
-                                since=self.since, max_results=10, user_fields="created_at").flatten(limit=250):
-            self.db_conn.queue_tweet(tweet)
+        tweets = []
+        for tweet in tweepy.Paginator(self.tweepy_client.get_users_tweets, id=self.author_id, exclude=["retweets", "replies"],
+                                since_id=self.since).flatten():
+            tweets.append(tweet)
         # Write the tweets to the database
-        print(f"Tweet type: {type(tweet)}")
-        self.db_conn.write_tweets()
+        self.db_conn.write_tweets(tweets, self.author_id)
 
-    def get_tweets_users(self) -> None:
+    def get_tweets(self) -> None:
         """Get all tweets for the data set."""
         # Get user ID's
         self.get_user_ids()
         for self.username in self.user_ids:
-            self.user_id = self.user_ids[self.username]
+            self.author_id = self.user_ids[self.username]
             # Check for existing tweet data for the user in our database
-            if (self.check_existing_data() := self.since):
-                # Check if there are newer tweets we can scrape
-                if self.newer_tweets():
-                    self.get_tweets_user_id()
+            if self.db_conn.check_existing_tweets(self.author_id):
+                LOGGER.debug(f"Found existing tweets in the database for user {self.username}")
+                # Check if the user has made new tweets we can scrape
+                if self.check_newer_tweets():
+                    LOGGER.info(f"New tweets for user {self.username}")
+                    self.get_users_tweets()
+                else:
+                    LOGGER.info(f"No new tweets to scrape for user {self.username}")
+            else:
+                LOGGER.debug(f"No existing tweets found in the database for user {self.username}")
+                self.get_users_tweets()
 
 
 if __name__ == "__main__":
-    TweetReader().get_tweets_users()
+    TweetReader().get_tweets()
