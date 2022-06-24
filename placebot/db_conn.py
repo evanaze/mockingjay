@@ -5,6 +5,7 @@ from logging import getLogger
 
 import yaml
 from tweepy.tweet import Tweet
+from pandas import DataFrame
 
 
 with open("placebot/logging_config.yaml", "r") as f:
@@ -89,27 +90,36 @@ class DbConn:
         since = self.cursor.fetchone()[0]
         return since
 
-    def write_tweets(
-        self, tweets: list[Tweet], author_id: int, raw: bool = True
-    ) -> None:
+    def batch_insert(self, sql: str, iterable: list[Tweet] | DataFrame, parse_function: function) -> None:
+        """Batch insert an iterable into the database.
+
+        :param sql: The sql string to execute
+        :param iterable:
+        """
+        while iterable:
+            batch_size = min(len(iterable), BUFFER_SIZE)
+            LOGGER.debug(f"Inserting {batch_size} tweets")
+            # Write the data in the queue
+            for _ in range(batch_size):
+                iterable, data = parse_function(iterable)
+                LOGGER.debug(f"Inserting tweet {data}")
+                self.cursor.execute(sql, data)
+            self.conn.commit()
+            
+    @staticmethod
+    def parse_raw_tweets(tweets: list[Tweet]) -> tuple[list[Tweet], tuple[str, int, str]]:
+        tweet = tweets.pop(0)
+        parse_raw_tweets = lambda tweet: (tweet.id, tweet.text)
+
+    def write_raw_tweets(self, tweets: list[Tweet], author_id: int) -> None:
         """Write tweets to the database.
 
         :param tweets: The list of tweets to write to the database
         :param author_id: The ID of the author to write tweets for
-        :param raw: Whether the tweets are raw (True) or processed (False)
         """
-        # Check if the tweets have been processed or not
-        if raw:
-            sql = "INSERT INTO tweets_raw(tweetID, authorID, tweet) VALUES (?, ?, ?)"
-        else:
-            sql = "INSERT INTO tweets(tweetID, authorID, tweet) VALUES (?, ?, ?)"
-        while tweets:
-            batch_size = min(len(tweets), BUFFER_SIZE)
-            LOGGER.debug(f"Inserting {batch_size} tweets")
-            # Write the data in the queue
-            for _ in range(batch_size):
-                tweet = tweets.pop(0)
-                tweet_id, text = tweet.id, tweet.text
-                LOGGER.debug(f"Inserting tweet {tweet.id, author_id, tweet.text}")
-                self.cursor.execute(sql, (tweet_id, author_id, text))
-            self.conn.commit()
+        sql = "INSERT INTO tweets_raw(tweetID, authorID, tweet) VALUES (?, ?, ?)"
+        self.batch_insert(sql, tweets, parse_raw)
+
+    def write_tweets(self, tweets: DataFrame, author_id: int) -> None:
+        """Write a dataframe of cleaned tweets."""
+        sql

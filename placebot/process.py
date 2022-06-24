@@ -4,7 +4,7 @@ import pandas as pd
 from tweepy.tweet import Tweet
 
 # Load the configuration
-config = toml.load("config.toml")
+config = toml.load("placebot/config.toml")
 min_words = config["process"]["min_words"]
 
 
