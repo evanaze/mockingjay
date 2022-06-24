@@ -10,9 +10,10 @@ import tweepy
 
 # Internal packages
 from db_conn import DbConn
+from process import process_tweets
 from exceptions import UserNotFoundError, AuthTokenNotFoundError
 
-with open('placebot/logging_config.yaml', 'r') as f:
+with open("placebot/logging_config.yaml", "r") as f:
     config = yaml.safe_load(f.read())
     logging.config.dictConfig(config)
 
@@ -20,7 +21,6 @@ LOGGER = getLogger(__name__)
 
 
 class TweetReader:
-
     def __init__(self, usernames: list = ["PIaceboAddict"]) -> None:
         """Read the tweets from a user or set of users.
 
@@ -51,7 +51,7 @@ class TweetReader:
                 # Update the user table
                 self.db_conn.update_user(author_id, username)
                 self.user_ids[username] = author_id
-                
+
     def check_newer_tweets(self) -> bool:
         """Check if the user has newer tweets we can scrape.
 
@@ -61,8 +61,12 @@ class TweetReader:
         most_recent_db = self.db_conn.get_most_recent_tweet(self.author_id)
         LOGGER.debug(f"Most recent recorded tweet: {most_recent_db}")
         # Get the user's most recent tweet on Twitter
-        most_recent_tweets = self.tweepy_client.get_users_tweets(id=self.author_id, exclude=["retweets", "replies"], 
-                                                                since_id=most_recent_db, max_results=5)
+        most_recent_tweets = self.tweepy_client.get_users_tweets(
+            id=self.author_id,
+            exclude=["retweets", "replies"],
+            since_id=most_recent_db,
+            max_results=5,
+        )
         # Check if there are new tweets
         return int(most_recent_tweets.meta["result_count"]) != 0
 
@@ -73,12 +77,14 @@ class TweetReader:
             msg += f" since tweet {self.since}"
         LOGGER.debug(msg)
         # Get tweets, optionally after a tweet ID
-        tweets = []
-        for tweet in tweepy.Paginator(self.tweepy_client.get_users_tweets, id=self.author_id, exclude=["retweets", "replies"],
-                                since_id=self.since).flatten():
-            tweets.append(tweet)
-        # Write the tweets to the database
-        self.db_conn.write_tweets(tweets, self.author_id)
+        self.tweets = []
+        for tweet in tweepy.Paginator(
+            self.tweepy_client.get_users_tweets,
+            id=self.author_id,
+            exclude=["retweets", "replies"],
+            since_id=self.since,
+        ).flatten():
+            self.tweets.append(tweet)
 
     def get_tweets(self) -> None:
         """Get all tweets for the data set."""
@@ -88,16 +94,27 @@ class TweetReader:
             self.author_id = self.user_ids[self.username]
             # Check for existing tweet data for the user in our database
             if self.db_conn.check_existing_tweets(self.author_id):
-                LOGGER.debug(f"Found existing tweets in the database for user {self.username}")
+                LOGGER.debug(
+                    f"Found existing tweets in the database for user {self.username}"
+                )
                 # Check if the user has made new tweets we can scrape
                 if self.check_newer_tweets():
                     LOGGER.info(f"New tweets for user {self.username}")
                     self.get_users_tweets()
                 else:
                     LOGGER.info(f"No new tweets to scrape for user {self.username}")
+                    continue
             else:
-                LOGGER.debug(f"No existing tweets found in the database for user {self.username}")
+                LOGGER.debug(
+                    f"No existing tweets found in the database for user {self.username}"
+                )
                 self.get_users_tweets()
+            # Write raw tweets to database
+            self.db_conn.write_tweets(self.tweets, self.author_id, raw=True)
+            # Clean the tweets
+            clean_tweets = process_tweets(self.tweets)
+            # Write clean tweets to DB
+            self.db_conn.write_tweets(clean_tweets, self.author_id)
 
 
 if __name__ == "__main__":

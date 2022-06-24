@@ -2,7 +2,6 @@
 
 
 class FineTune:
-    
     def __init__(self, model_path: str) -> None:
         """Fine tunes the model.
 
