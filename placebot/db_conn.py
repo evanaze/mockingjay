@@ -90,7 +90,9 @@ class DbConn:
         since = self.cursor.fetchone()[0]
         return since
 
-    def batch_insert(self, sql: str, iterable: list[Tweet] | DataFrame, parse_function: function) -> None:
+    def batch_insert(
+        self, sql: str, iterable: list[Tweet] | DataFrame, parse_function: function
+    ) -> None:
         """Batch insert an iterable into the database.
 
         :param sql: The sql string to execute
@@ -105,9 +107,11 @@ class DbConn:
                 LOGGER.debug(f"Inserting tweet {data}")
                 self.cursor.execute(sql, data)
             self.conn.commit()
-            
+
     @staticmethod
-    def parse_raw_tweets(tweets: list[Tweet]) -> tuple[list[Tweet], tuple[str, int, str]]:
+    def parse_raw_tweets(
+        tweets: list[Tweet],
+    ) -> tuple[list[Tweet], tuple[str, int, str]]:
         tweet = tweets.pop(0)
         parse_raw_tweets = lambda tweet: (tweet.id, tweet.text)
 
