@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "placebot"
+name = "mockingjay"
 version = "0.1.0"
-description = ""
-authors = ["Evan Azevedo <evan@azevedo.com>"]
+description = "Imitate a Twitter user using LLMs"
+authors = ["Evan Azevedo <me@evanazevedo.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
