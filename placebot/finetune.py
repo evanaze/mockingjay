@@ -8,3 +8,4 @@ class FineTune:
 
         :param model_path: The actual path to the model to fine-tune
         """
+        self.model_path = model_path
