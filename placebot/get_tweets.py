@@ -110,7 +110,7 @@ class TweetReader:
                 )
                 self.get_users_tweets()
             # Write raw tweets to database
-            self.db_conn.write_tweets(self.tweets, self.author_id, raw=True)
+            self.db_conn.write_raw_tweets(self.tweets, self.author_id)
             # Clean the tweets
             clean_tweets = process_tweets(self.tweets)
             # Write clean tweets to DB
