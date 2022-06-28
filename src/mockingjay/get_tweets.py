@@ -86,7 +86,7 @@ class TweetReader(TwitterConn):
             # Clean the tweets
             clean_tweets = process_tweets(self.tweets)
             # Write clean tweets to DB
-            self.db_conn.write_tweets(clean_tweets, self.author_id)
+            self.db_conn.write_proc_tweets(clean_tweets, self.author_id)
 
 
 if __name__ == "__main__":

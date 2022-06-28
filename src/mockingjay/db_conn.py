@@ -32,7 +32,7 @@ class DbConn:
 
         # processed tweets table
         self.cursor.execute(
-            """CREATE TABLE IF NOT EXISTS tweets(
+            """CREATE TABLE IF NOT EXISTS tweets_proc(
             tweetID INT PRIMARY KEY,
             authorID INT,
             tweet TEXT
@@ -104,21 +104,26 @@ class DbConn:
             self.conn.commit()
 
     @staticmethod
-    def parse_raw_tweets(
-        tweets: list[Tweet],
-    ) -> tuple[list[Tweet], tuple[str, int, str]]:
+    def parse_raw_tweets(tweets: list[Tweet]) -> tuple[list[Tweet], tuple[str, int, str]]:
+        tweet = tweets.pop(0)
+        parse_raw_tweets = lambda tweet: (tweet.id, tweet.text)
+
+    @staticmethod
+    def parse_proc_tweets(tweets: list[Tweet]) -> tuple[list[Tweet], tuple[str, int, str]]:
         tweet = tweets.pop(0)
         parse_raw_tweets = lambda tweet: (tweet.id, tweet.text)
 
     def write_raw_tweets(self, tweets: list[Tweet], author_id: int) -> None:
-        """Write tweets to the database.
+        """Write unprocessed tweets to the database.
 
         :param tweets: The list of tweets to write to the database
         :param author_id: The ID of the author to write tweets for
         """
         sql = "INSERT INTO tweets_raw(tweetID, authorID, tweet) VALUES (?, ?, ?)"
-        self.batch_insert(sql, tweets, parse_raw)
+        self.batch_insert(sql, tweets, parse_raw_tweets)
+        
 
     def write_tweets(self, tweets: DataFrame, author_id: int) -> None:
         """Write a dataframe of cleaned tweets."""
-        sql
+        sql = "INSERT INTO tweets_proc(tweetID, authorID, tweet) VALUES (?, ?, ?)"
+        self.batch_insert(sql, tweets, parse_proc_tweets)
