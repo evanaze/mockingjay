@@ -1,7 +1,7 @@
 """Form a connection to the Twitter API."""
 import os
 import tweepy
-from exceptions import AuthTokenNotFoundError
+from mockingjay.exceptions import AuthTokenNotFoundError
 
 
 class TwitterConn:

@@ -4,6 +4,7 @@ import sqlite3
 from pandas import DataFrame
 from tweepy.tweet import Tweet
 
+from mockingjay.tweet import MyTweet
 from mockingjay.logger import get_logger
 
 
@@ -85,45 +86,19 @@ class DbConn:
         since = self.cursor.fetchone()[0]
         return since
 
-    def batch_insert(
-        self, sql: str, iterable: list[Tweet] | DataFrame, parse_function: function
-    ) -> None:
-        """Batch insert an iterable into the database.
+    def write_tweets(self, tweets: list[MyTweet], table: str = "tweets_raw") -> None:
+        """Write tweets to the database.
 
-        :param sql: The sql string to execute
-        :param iterable:
+        :param tweets: The list of tweets to write to the database
+        :param table: The table name to write the tweets for
         """
-        while iterable:
-            batch_size = min(len(iterable), BUFFER_SIZE)
+        sql = f"INSERT INTO {table}(tweetID, authorID, tweet) VALUES (?, ?, ?)"
+        while tweets:
+            batch_size = min(len(tweets), BUFFER_SIZE)
             LOGGER.debug(f"Inserting {batch_size} tweets")
             # Write the data in the queue
             for _ in range(batch_size):
-                iterable, data = parse_function(iterable)
-                LOGGER.debug(f"Inserting tweet {data}")
-                self.cursor.execute(sql, data)
+                tweet = tweets.pop(0).to_tuple()
+                LOGGER.debug(f"Inserting tweet {tweet}")
+                self.cursor.execute(sql, tweet)
             self.conn.commit()
-
-    @staticmethod
-    def parse_raw_tweets(tweets: list[Tweet]) -> tuple[list[Tweet], tuple[str, int, str]]:
-        tweet = tweets.pop(0)
-        parse_raw_tweets = lambda tweet: (tweet.id, tweet.text)
-
-    @staticmethod
-    def parse_proc_tweets(tweets: list[Tweet]) -> tuple[list[Tweet], tuple[str, int, str]]:
-        tweet = tweets.pop(0)
-        parse_raw_tweets = lambda tweet: (tweet.id, tweet.text)
-
-    def write_raw_tweets(self, tweets: list[Tweet], author_id: int) -> None:
-        """Write unprocessed tweets to the database.
-
-        :param tweets: The list of tweets to write to the database
-        :param author_id: The ID of the author to write tweets for
-        """
-        sql = "INSERT INTO tweets_raw(tweetID, authorID, tweet) VALUES (?, ?, ?)"
-        self.batch_insert(sql, tweets, parse_raw_tweets)
-        
-
-    def write_tweets(self, tweets: DataFrame, author_id: int) -> None:
-        """Write a dataframe of cleaned tweets."""
-        sql = "INSERT INTO tweets_proc(tweetID, authorID, tweet) VALUES (?, ?, ?)"
-        self.batch_insert(sql, tweets, parse_proc_tweets)

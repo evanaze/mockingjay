@@ -5,8 +5,12 @@ from mockingjay.utils import check_handles
 
 
 @click.command()
-@click.argument("handles", help="The Twitter handle(s) to emulate for.")
-def cli(handles):
+@click.argument("handles")
+def cli(handles: list[str]) -> None:
+    """Defines the CLI.
+    
+    :param handles: A list of Twitter handles to check for.
+    """
     # Check that an argument was supplied
     if not handles:
         click.echo("Please specify at least one Twitter username to emulate.")

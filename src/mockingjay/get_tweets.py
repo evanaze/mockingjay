@@ -3,10 +3,11 @@
 import tweepy
 
 # Internal packages
+from mockingjay.tweet import MyTweet
 from mockingjay.db_conn import DbConn
+from mockingjay.process import Process
 from mockingjay.logger import get_logger
 from mockingjay.utils import check_handles
-from mockingjay.process import process_tweets
 from mockingjay.twitter_conn import TwitterConn
 
 
@@ -56,7 +57,7 @@ class TweetReader(TwitterConn):
             exclude=["retweets", "replies"],
             since_id=self.since,
         ).flatten():
-            self.tweets.append(tweet)
+            self.tweets.append(MyTweet(tweet.id, tweet.text, self.author_id))
 
     def get_tweets(self) -> None:
         """Get all tweets for the data set."""
@@ -82,11 +83,11 @@ class TweetReader(TwitterConn):
                 )
                 self.get_users_tweets()
             # Write raw tweets to database
-            self.db_conn.write_raw_tweets(self.tweets, self.author_id)
+            self.db_conn.write_tweets(self.tweets)
             # Clean the tweets
-            clean_tweets = process_tweets(self.tweets)
+            clean_tweets = Process(self.tweets).process_tweets()
             # Write clean tweets to DB
-            self.db_conn.write_proc_tweets(clean_tweets, self.author_id)
+            self.db_conn.write_tweets(clean_tweets)
 
 
 if __name__ == "__main__":
