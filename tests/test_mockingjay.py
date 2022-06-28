@@ -1,4 +1,4 @@
-from placebot import __version__
+from src.mockingjay import __version__
 
 
 def test_version():

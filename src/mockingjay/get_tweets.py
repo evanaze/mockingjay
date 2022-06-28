@@ -1,56 +1,39 @@
 """Get tweets for a specified user."""
-import os
-import logging.config
-from logging import getLogger
-from typing import Optional
-
 # Third party packages
-import yaml
 import tweepy
 
 # Internal packages
-from db_conn import DbConn
-from process import process_tweets
-from exceptions import UserNotFoundError, AuthTokenNotFoundError
-
-with open("placebot/logging_config.yaml", "r") as f:
-    config = yaml.safe_load(f.read())
-    logging.config.dictConfig(config)
-
-LOGGER = getLogger(__name__)
+from src.mockingjay.db_conn import DbConn
+from src.mockingjay.logger import get_logger
+from src.mockingjay.utils import check_handles
+from src.mockingjay.process import process_tweets
+from src.mockingjay.twitter_conn import TwitterConn
 
 
-class TweetReader:
-    def __init__(self, usernames: list = ["PIaceboAddict"]) -> None:
+LOGGER = get_logger(__name__)
+
+
+class TweetReader(TwitterConn):
+    def __init__(self, usernames: list[str] = ["PIaceboAddict"]) -> None:
         """Read the tweets from a user or set of users.
 
         :param usernames: The list of usernames to scrape tweets for.
         """
+        super().__init__()
         self.usernames = usernames
         self.since = None
-        if bearer_token := os.getenv("TWITTER_BEARER_TOKEN"):
-            self.tweepy_client = tweepy.Client(bearer_token)
-        else:
-            raise AuthTokenNotFoundError("Please export your bearer token.")
         self.db_conn = DbConn()
 
     def get_user_ids(self) -> None:
         """Get the user IDs of the users Twitter handles from Tweepy"""
         self.user_ids = {}
         for username in self.usernames:
-            LOGGER.debug(f"Looking up user id for user {username}")
             # Get the current author ID from Tweepy
             user = self.tweepy_client.get_user(username=username)
             # Check for errors in finding the user
             if user.errors:
                 msg = user.errors[0]["detail"]
                 raise UserNotFoundError(msg)
-            else:
-                author_id = user.data["data"]["id"]
-                LOGGER.debug(f"User {username} has ID {author_id}")
-                # Update the user table
-                self.db_conn.update_user(author_id, username)
-                self.user_ids[username] = author_id
 
     def check_newer_tweets(self) -> bool:
         """Check if the user has newer tweets we can scrape.
@@ -89,7 +72,7 @@ class TweetReader:
     def get_tweets(self) -> None:
         """Get all tweets for the data set."""
         # Get user ID's
-        self.get_user_ids()
+        self.user_ids = check_handles(self.usernames)
         for self.username in self.user_ids:
             self.author_id = self.user_ids[self.username]
             # Check for existing tweet data for the user in our database
