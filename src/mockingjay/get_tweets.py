@@ -3,11 +3,11 @@
 import tweepy
 
 # Internal packages
-from src.mockingjay.db_conn import DbConn
-from src.mockingjay.logger import get_logger
-from src.mockingjay.utils import check_handles
-from src.mockingjay.process import process_tweets
-from src.mockingjay.twitter_conn import TwitterConn
+from mockingjay.db_conn import DbConn
+from mockingjay.logger import get_logger
+from mockingjay.utils import check_handles
+from mockingjay.process import process_tweets
+from mockingjay.twitter_conn import TwitterConn
 
 
 LOGGER = get_logger(__name__)
@@ -23,17 +23,6 @@ class TweetReader(TwitterConn):
         self.usernames = usernames
         self.since = None
         self.db_conn = DbConn()
-
-    def get_user_ids(self) -> None:
-        """Get the user IDs of the users Twitter handles from Tweepy"""
-        self.user_ids = {}
-        for username in self.usernames:
-            # Get the current author ID from Tweepy
-            user = self.tweepy_client.get_user(username=username)
-            # Check for errors in finding the user
-            if user.errors:
-                msg = user.errors[0]["detail"]
-                raise UserNotFoundError(msg)
 
     def check_newer_tweets(self) -> bool:
         """Check if the user has newer tweets we can scrape.

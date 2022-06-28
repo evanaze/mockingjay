@@ -1,18 +1,13 @@
 """Database interface class"""
 import sqlite3
-import logging.config
-from logging import getLogger
 
-import yaml
-from tweepy.tweet import Tweet
 from pandas import DataFrame
+from tweepy.tweet import Tweet
+
+from mockingjay.logger import get_logger
 
 
-with open("placebot/logging_config.yaml", "r") as f:
-    config = yaml.safe_load(f.read())
-    logging.config.dictConfig(config)
-
-LOGGER = getLogger(__name__)
+LOGGER = get_logger(__name__)
 # The number of inserts to execute in a batch
 BUFFER_SIZE = 250
 
