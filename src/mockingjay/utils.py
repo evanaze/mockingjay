@@ -19,6 +19,7 @@ def check_handles(handles: list[str]) -> dict:
     # Database connection
     db_conn = DbConn()
     user_ids = {}
+    LOGGER.info(handles)
     for handle in handles:
         LOGGER.debug(f"Looking up user id for user {handle}")
         user = tw_conn.tweepy_client.get_user(username=handle)

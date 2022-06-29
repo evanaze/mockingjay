@@ -67,7 +67,7 @@ class TweetReader(TwitterConn):
             self.author_id = self.user_ids[self.username]
             # Check for existing tweet data for the user in our database
             if self.db_conn.check_existing_tweets(self.author_id):
-                LOGGER.debug(
+                LOGGER.info(
                     f"Found existing tweets in the database for user {self.username}"
                 )
                 # Check if the user has made new tweets we can scrape
@@ -78,7 +78,7 @@ class TweetReader(TwitterConn):
                     LOGGER.info(f"No new tweets to scrape for user {self.username}")
                     continue
             else:
-                LOGGER.debug(
+                LOGGER.info(
                     f"No existing tweets found in the database for user {self.username}"
                 )
                 self.get_users_tweets()
@@ -87,7 +87,7 @@ class TweetReader(TwitterConn):
             # Clean the tweets
             clean_tweets = Process(self.tweets).process_tweets()
             # Write clean tweets to DB
-            self.db_conn.write_tweets(clean_tweets)
+            self.db_conn.write_tweets(clean_tweets, table="tweets_proc")
 
 
 if __name__ == "__main__":

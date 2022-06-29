@@ -1,8 +1,7 @@
 """Database interface class"""
+import os
 import sqlite3
-
-from pandas import DataFrame
-from tweepy.tweet import Tweet
+from pathlib import Path
 
 from mockingjay.tweet import MyTweet
 from mockingjay.logger import get_logger
@@ -14,9 +13,12 @@ BUFFER_SIZE = 250
 
 
 class DbConn:
-    def __init__(self):
+    def __init__(
+        self, db: str = os.path.join(Path(__file__).parents[2], "data/twitter.db")
+    ):
         """Class for interfacing with the SQLite3 database."""
-        self.conn = sqlite3.connect("data/twitter.db")
+        LOGGER.info(f"Connecting to DB {db}")
+        self.conn = sqlite3.connect(db)
         self.cursor = self.conn.cursor()
         self.init_db()
 
@@ -27,7 +29,7 @@ class DbConn:
             """CREATE TABLE IF NOT EXISTS tweets_raw(
             tweetID INT PRIMARY KEY,
             authorID INT,
-            tweet TEXT
+            text TEXT
             );"""
         )
 
@@ -36,7 +38,7 @@ class DbConn:
             """CREATE TABLE IF NOT EXISTS tweets_proc(
             tweetID INT PRIMARY KEY,
             authorID INT,
-            tweet TEXT
+            text TEXT
             );"""
         )
 
@@ -53,6 +55,7 @@ class DbConn:
     def update_user(self, author_id: int, username: str) -> None:
         """Creates or updates a user with a given username"""
         params = {"author_id": author_id, "username": username}
+        LOGGER.debug(f"Updating user {username} with ID {author_id}")
         self.cursor.execute(
             """INSERT INTO users(authorID, username) VALUES (:author_id, :username)
                             ON CONFLICT (authorID) DO UPDATE SET username=:username""",
@@ -66,6 +69,7 @@ class DbConn:
         :param author_id: The author ID to check for existing tweet data for
         :return: True if we have tweet data, false otherwise
         """
+        LOGGER.debug(f"Checking for existing tweets from ID {author_id}")
         self.cursor.execute(
             "SELECT EXISTS(SELECT 1 FROM tweets_raw WHERE authorID = (?));",
             (author_id,),
@@ -79,6 +83,7 @@ class DbConn:
         :param author_id: The author ID to check for tweet data for
         :return: The tweet ID of the most recent tweet
         """
+        LOGGER.debug(f"Getting most recent tweet from ID {author_id}")
         self.cursor.execute(
             "SELECT tweetID FROM tweets_raw WHERE authorID = (?) ORDER BY tweetID DESC LIMIT 1;",
             (author_id,),
@@ -92,13 +97,14 @@ class DbConn:
         :param tweets: The list of tweets to write to the database
         :param table: The table name to write the tweets for
         """
-        sql = f"INSERT INTO {table}(tweetID, authorID, tweet) VALUES (?, ?, ?)"
-        while tweets:
-            batch_size = min(len(tweets), BUFFER_SIZE)
+        sql = f"INSERT INTO {table}(tweetID, authorID, text) VALUES (?, ?, ?)"
+        queue = tweets.copy()
+        while queue:
+            batch_size = min(len(queue), BUFFER_SIZE)
             LOGGER.debug(f"Inserting {batch_size} tweets")
             # Write the data in the queue
             for _ in range(batch_size):
-                tweet = tweets.pop(0).to_tuple()
+                tweet = queue.pop(0).to_tuple()
                 LOGGER.debug(f"Inserting tweet {tweet}")
                 self.cursor.execute(sql, tweet)
             self.conn.commit()
