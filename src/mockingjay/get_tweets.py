@@ -11,7 +11,7 @@ from mockingjay.utils import check_handles
 from mockingjay.twitter_conn import TwitterConn
 
 
-LOGGER = get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class TweetReader(TwitterConn):
@@ -32,7 +32,7 @@ class TweetReader(TwitterConn):
         """
         # Get the most recent tweet from our database
         most_recent_db = self.db_conn.get_most_recent_tweet(self.author_id)
-        LOGGER.debug(f"Most recent recorded tweet: {most_recent_db}")
+        logger.debug(f"Most recent recorded tweet: {most_recent_db}")
         # Get the user's most recent tweet on Twitter
         most_recent_tweets = self.tweepy_client.get_users_tweets(
             id=self.author_id,
@@ -48,7 +48,7 @@ class TweetReader(TwitterConn):
         msg = f"Getting tweets for user {self.username}"
         if self.since:
             msg += f" since tweet {self.since}"
-        LOGGER.debug(msg)
+        logger.debug(msg)
         # Get tweets, optionally after a tweet ID
         self.tweets = []
         for tweet in tweepy.Paginator(
@@ -67,18 +67,18 @@ class TweetReader(TwitterConn):
             self.author_id = self.user_ids[self.username]
             # Check for existing tweet data for the user in our database
             if self.db_conn.check_existing_tweets(self.author_id):
-                LOGGER.info(
+                logger.info(
                     f"Found existing tweets in the database for user {self.username}"
                 )
                 # Check if the user has made new tweets we can scrape
                 if self.check_newer_tweets():
-                    LOGGER.info(f"New tweets for user {self.username}")
+                    logger.info(f"New tweets for user {self.username}")
                     self.get_users_tweets()
                 else:
-                    LOGGER.info(f"No new tweets to scrape for user {self.username}")
+                    logger.info(f"No new tweets to scrape for user {self.username}")
                     continue
             else:
-                LOGGER.info(
+                logger.info(
                     f"No existing tweets found in the database for user {self.username}"
                 )
                 self.get_users_tweets()

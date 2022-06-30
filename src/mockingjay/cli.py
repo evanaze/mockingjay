@@ -8,7 +8,7 @@ from mockingjay.get_tweets import TweetReader
 
 
 # Initialize the root logger
-logger = getLogger()
+logger = getLogger(__name__)
 
 
 @click.command()

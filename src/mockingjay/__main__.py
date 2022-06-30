@@ -1,10 +1,15 @@
-from logging import getLogger
+import os
+import logging
 
 from mockingjay.cli import cli
 
 
 # Initialize the root logger
-LOGGER = getLogger(__name__)
-LOGGER.info("Starting program.")
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=os.getenv("LOGLEVEL", "INFO"),
+)
+logger = logging.getLogger(__name__)
+logger.info("Starting program.")
 
 cli()

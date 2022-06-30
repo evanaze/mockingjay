@@ -7,7 +7,7 @@ from mockingjay.tweet import MyTweet
 from mockingjay.logger import get_logger
 
 
-LOGGER = get_logger(__name__)
+logger = get_logger(__name__)
 # The number of inserts to execute in a batch
 BUFFER_SIZE = 250
 
@@ -17,7 +17,7 @@ class DbConn:
         self, db: str = os.path.join(Path(__file__).parents[2], "data/twitter.db")
     ):
         """Class for interfacing with the SQLite3 database."""
-        LOGGER.info(f"Connecting to DB {db}")
+        logger.info(f"Connecting to DB {db}")
         self.conn = sqlite3.connect(db)
         self.cursor = self.conn.cursor()
         self.init_db()
@@ -55,7 +55,7 @@ class DbConn:
     def update_user(self, author_id: int, username: str) -> None:
         """Creates or updates a user with a given username"""
         params = {"author_id": author_id, "username": username}
-        LOGGER.debug(f"Updating user {username} with ID {author_id}")
+        logger.debug(f"Updating user {username} with ID {author_id}")
         self.cursor.execute(
             """INSERT INTO users(authorID, username) VALUES (:author_id, :username)
                             ON CONFLICT (authorID) DO UPDATE SET username=:username""",
@@ -69,7 +69,7 @@ class DbConn:
         :param author_id: The author ID to check for existing tweet data for
         :return: True if we have tweet data, false otherwise
         """
-        LOGGER.debug(f"Checking for existing tweets from ID {author_id}")
+        logger.debug(f"Checking for existing tweets from ID {author_id}")
         self.cursor.execute(
             "SELECT EXISTS(SELECT 1 FROM tweets_raw WHERE authorID = (?));",
             (author_id,),
@@ -83,7 +83,7 @@ class DbConn:
         :param author_id: The author ID to check for tweet data for
         :return: The tweet ID of the most recent tweet
         """
-        LOGGER.debug(f"Getting most recent tweet from ID {author_id}")
+        logger.debug(f"Getting most recent tweet from ID {author_id}")
         self.cursor.execute(
             "SELECT tweetID FROM tweets_raw WHERE authorID = (?) ORDER BY tweetID DESC LIMIT 1;",
             (author_id,),
@@ -101,10 +101,10 @@ class DbConn:
         queue = tweets.copy()
         while queue:
             batch_size = min(len(queue), BUFFER_SIZE)
-            LOGGER.debug(f"Inserting {batch_size} tweets")
+            logger.debug(f"Inserting {batch_size} tweets")
             # Write the data in the queue
             for _ in range(batch_size):
                 tweet = queue.pop(0).to_tuple()
-                LOGGER.debug(f"Inserting tweet {tweet}")
+                logger.debug(f"Inserting tweet {tweet}")
                 self.cursor.execute(sql, tweet)
             self.conn.commit()

@@ -5,7 +5,7 @@ from mockingjay.twitter_conn import TwitterConn
 from mockingjay.exceptions import UserNotFoundError
 
 
-LOGGER = get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def check_handles(handles: list[str]) -> dict:
@@ -19,9 +19,9 @@ def check_handles(handles: list[str]) -> dict:
     # Database connection
     db_conn = DbConn()
     user_ids = {}
-    LOGGER.info(handles)
+    logger.info(handles)
     for handle in handles:
-        LOGGER.debug(f"Looking up user id for user {handle}")
+        logger.debug(f"Looking up user id for user {handle}")
         user = tw_conn.tweepy_client.get_user(username=handle)
         # Check for errors in finding the user
         if user.errors:
@@ -29,7 +29,7 @@ def check_handles(handles: list[str]) -> dict:
             raise UserNotFoundError(msg)
         else:
             author_id = user.data["data"]["id"]
-            LOGGER.debug(f"User {handle} has ID {author_id}")
+            logger.debug(f"User {handle} has ID {author_id}")
             # Update the user table
             db_conn.update_user(author_id, handle)
             user_ids[handle] = author_id
