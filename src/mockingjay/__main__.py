@@ -1,3 +1,4 @@
+"""Main interface for Mockingjay."""
 import os
 import logging
 
