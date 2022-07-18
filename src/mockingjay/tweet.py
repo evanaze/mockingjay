@@ -12,8 +12,8 @@ class MyTweet:
     """
 
     tweet_id: int
-    text: str
     author_id: int
+    text: str
 
     def to_tuple(self):
         """Returns the data as a tuple"""
