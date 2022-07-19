@@ -5,6 +5,7 @@ from pathlib import Path
 from logging import getLogger
 
 from mockingjay.exceptions import DbConnectionError
+from mockingjay.tweet import MyTweet
 
 BUFFER_SIZE = 250
 logger = getLogger(__name__)
@@ -47,12 +48,15 @@ class DbConn:
 class DbUtils:
     """DB utilities object."""
 
-    def __init__(self, db_path: str):
-        """DB Tools"""
+    def __init__(self, db_path: str) -> None:
+        """DB Tools.
+
+        :param db_path: Path to database object.
+        """
         self.db_path = db_path
         if not os.path.isfile(db_path):
             self._init_db()
-    
+
     def _init_db(self) -> None:
         """Initialize the database with tables."""
         with DbConn(self.db_path) as db_conn:
@@ -126,13 +130,13 @@ class DbUtils:
             since = cursor.fetchone()[0]
         return since
 
-    def write_tweets(self, table: str = "tweets_raw") -> None:
+    def write_tweets(self, tweets: list[MyTweet], table: str = "tweets_raw") -> None:
         """Write tweets to the database.
 
         :param table: The table name to write the tweets for
         """
         sql = f"INSERT INTO {table}(tweetID, authorID, text) VALUES (?, ?, ?)"
-        queue = self.tweets.copy()
+        queue = tweets.copy()
         with DbConn(self.db_path) as db_conn:
             cursor = db_conn.cursor()
             while queue:

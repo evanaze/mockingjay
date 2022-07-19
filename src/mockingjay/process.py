@@ -6,8 +6,7 @@ import toml
 import pandas as pd
 
 from mockingjay.tweet import MyTweet
-from mockingjay.db_conn import DbConn
-from mockingjay.db_utils import DbUtils
+from mockingjay.db_utils import DbUtils, DbConn
 
 BUFFER_SIZE = 250
 logger = getLogger(__name__)
@@ -24,16 +23,15 @@ class Processor:
         self.raw_tweets: list[MyTweet] = tweets
         self.author_ids: list[int] = [tweet.author_id for tweet in tweets]
         self.clean_df: pd.DataFrame = None
-
         self._load_config()
-        
+
     def _load_config(self):
         """Load the configuration."""
         config_fpath = os.path.join(os.path.dirname(__file__), "config/config.toml")
         config = toml.load(config_fpath)
         self.min_words = config["process"]["min_words"]
 
-    def clean_data(self) -> None:
+    def _clean_data(self) -> None:
         """Cleans the input data."""
         self.clean_df = (
             self.clean_df[~self.clean_df.text.str.contains("https")]
@@ -58,10 +56,14 @@ class Processor:
         """
         # Create a Dataframe of tweets
         self.clean_df = pd.DataFrame(
-            [(tweet.tweet_id, tweet.author_id, tweet.text) for tweet in self.raw_tweets], columns=["id", "author", "text"]
+            [
+                (tweet.tweet_id, tweet.author_id, tweet.text)
+                for tweet in self.raw_tweets
+            ],
+            columns=["id", "author", "text"],
         )
         # Clean the Tweets
-        self.clean_data()
+        self._clean_data()
         # Turn Dataframe into a list of tweet objects
         self._df_to_tweets()
         return self.tweets
@@ -76,12 +78,10 @@ def clean_all(db_path: str) -> None:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM tweets_raw;")
         raw_tweets = cursor.fetchall()
+
     # Turn tweets into MyTweets objects
-    print(raw_tweets)
-    raw_tweets = [MyTweet()]
-    
+    raw_tweets = [MyTweet(tweet[0], tweet[1], tweet[2]) for tweet in raw_tweets]
     # Process the raw tweets
-    proc = Processor(raw_tweets)
-    clean_tweets = proc.process_tweets()
+    clean_tweets = Processor(raw_tweets).process_tweets()
     # Insert clean tweets into the database
-    
+    DbUtils(db_path).write_tweets(clean_tweets, table="tweets_proc")
