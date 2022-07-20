@@ -1,4 +1,5 @@
 """Process raw tweets."""
+import re
 import os
 from logging import getLogger
 
@@ -33,11 +34,20 @@ class Processor:
 
     def _clean_data(self) -> None:
         """Cleans the input data."""
+        # Replace function used when removing newlines after punctuation
+        def repl(s):
+            return re.sub("\n+", " ", s.group(0))
+
         self.clean_df = (
-            self.clean_df[~self.clean_df.text.str.contains("https")]
-            .assign(
-                n_words=self.clean_df.text.str.split().map(len),
-                text=self.clean_df.text.str.strip(),
+            self.clean_df.assign(
+                text=self.clean_df.text.replace(
+                    "#\\w*|@\\w*|https?://t.co/\\w*", "", regex=True
+                )
+                .str.replace("[.,!?:;]\n+", repl, regex=True)  # Remove newline after punctuation
+                .replace("\n+", ". ", regex=True)  # Replace newlines with ". "
+                .replace("[`'\"]", "", regex=True)  # Remove quotes
+                .apply(lambda x: x.strip()),  # Strip whitespace
+                n_words=lambda df: df.text.str.split().map(len),
             )[lambda x: x.n_words >= self.min_words]
             .drop("n_words", axis=1)
             .reset_index(drop=True)
@@ -69,7 +79,7 @@ class Processor:
         return self.tweets
 
 
-def clean_all(db_path: str) -> None:
+def clean_all(db_path: str = "data/twitter.db") -> None:
     """Clean all data in the raw table and re-insert into the processed table.
 
     :param db_path: Path to the database to clean.
@@ -85,3 +95,7 @@ def clean_all(db_path: str) -> None:
     clean_tweets = Processor(raw_tweets).process_tweets()
     # Insert clean tweets into the database
     DbUtils(db_path).write_tweets(clean_tweets, table="tweets_proc")
+
+
+if __name__ == "__main__":
+    clean_all()

@@ -1,9 +1,8 @@
 """Simple object to store Tweet data."""
-from dataclasses import dataclass
+from pydantic import BaseModel
 
 
-@dataclass
-class MyTweet:
+class MyTweet(BaseModel):
     """A tiny class for saving the tweet data that makes it easier to ingest
 
     :param id: The Tweet ID

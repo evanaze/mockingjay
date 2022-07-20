@@ -3,16 +3,23 @@ import sys
 from logging import getLogger
 
 import click
+
 from mockingjay.get_tweets import TweetReader
+from mockingjay.process import clean_all
 
 # Initialize the root logger
 logger = getLogger(__name__)
 
 
-@click.command()
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
 @click.argument("handles", nargs=-1)
-def cli(handles: list[str] = None) -> None:
-    """Defines the CLI.
+def get_tweets(handles: list[str] = None) -> None:
+    """Download tweets from the database.
 
     :param handles: A list of Twitter handles to check for.
     """
@@ -26,3 +33,8 @@ def cli(handles: list[str] = None) -> None:
     tweet_reader = TweetReader(handles)
     tweet_reader.check_handles()
     tweet_reader.get_tweets()
+
+@cli.command()
+def clean() -> None:
+    """Cleans all raw data in the database."""
+    clean_all()
