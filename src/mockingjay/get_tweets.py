@@ -6,6 +6,7 @@ from logging import getLogger
 
 # Third party packages
 import tweepy
+import twint
 
 # Internal packages
 from mockingjay.tweet import MyTweet
@@ -37,6 +38,7 @@ class TweetReader:
             self.tweepy_client = tweepy.Client(bearer_token)
         else:
             raise AuthTokenNotFoundError("Please export your bearer token.")
+        self.twint_client = twint.Config()
         self.db_path = db_path
         self.db_utils = DbUtils(db_path)
         self.since = None
